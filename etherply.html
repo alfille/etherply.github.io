@@ -1,0 +1,488 @@
+<HTML>
+<HEAD>
+<TITLE>Etherply</TITLE>
+<!-- $Id: etherply.html,v 1.4 2008/05/14 01:58:09 etherknitter Exp $ -->
+<!-- License: General Public License v2 (GPLv2) -->
+<!-- Copyright 2008 Etherknitter mailto:etherknitter@gmail.com http://etherknitter.com -->
+<!-- Code hosted on Sourceforge http://sourceforge.net/projects/etherply/ -->
+<SCRIPT LANGUAGE="JavaScript">
+<!--
+var display_state = ""
+function DisplayState(new_state) {
+	var old_display_state = display_state
+	display_state = new_state
+	switch ( new_state ) {
+		case old_display_state:
+			break
+		case "data":
+			Left.document.calculate.calculate.value="Find best combination"
+			Left.document.status.status.value="Data entry"
+			Left.document.status.found.disabled=true
+			Left.document.status.found.value=""
+			LoadRight()
+			break
+		case "calculating":
+			Left.document.status.status.value="calculating..."
+			Left.document.calculate.calculate.value="CANCEL"
+			Left.document.calculate.calculate.disabled=false
+			Left.document.status.found.disabled=false
+			break
+		case "cancel":
+			Left.document.status.status.value="Cancelled"
+			Left.document.calculate.calculate.value="Cancelled"
+			Left.document.calculate.calculate.disabled=true
+			break
+		case "complete":
+			Left.document.status.status.value="Solved"
+			Left.document.calculate.calculate.value="Solved"
+			Left.document.calculate.calculate.disabled=true
+			Left.document.status.found.value=Permutation.found
+			break
+		case "initial":
+		default:
+			DisplayState("data")
+			break
+	}
+}	
+
+
+// Make the middle panel when the number of bobbins is known
+function MakeBobbins() {
+	var field = Left.document.bobbins.bobbins
+	var bobbins = parseInt(field.value)
+	if ( isNaN(bobbins) ) {
+		Left.document.status.possible.value=""
+		Left.document.status.possible.disabled=true
+		field.focus()
+		field.select()
+		return false
+	}
+	Permutation.bobbins = bobbins
+	MiddleForms()
+	MiddleLoadValues()
+	DisplayState("data")
+	if ( typeof(Permutation.ply)!="undefined" && !isNaN(Permutation.ply) ) {
+		Left.document.status.possible.value=CalcPermutations()
+		Left.document.status.possible.disabled=false
+	}
+	return true
+}
+
+function MakePly() {
+	var field = Left.document.ply.ply
+	var ply = parseInt(field.value)
+	if ( isNaN(ply) ) {
+		Left.document.status.possible.value=""
+		Left.document.status.possible.disabled=true
+		field.focus()
+		field.select()
+		return false
+	}
+	Permutation.ply = ply
+	TestValues()
+	if ( typeof(Permutation.bobbins)!="undefined" && !isNaN(Permutation.bobbins) ) {
+		Left.document.status.possible.value=CalcPermutations()
+		Left.document.status.possible.disabled=false
+	}
+	return true
+}
+
+function MainLoad() {
+	Permutation.solved = false
+	TestValues()
+}
+
+function LeftLoad() {
+	Left.document.ply.ply.value = typeof(Permutation.ply)=="undefined"?"":Permutation.ply
+	Left.document.bobbins.bobbins.value = typeof(Permutation.bobbins)=="undefined"?"":Permutation.bobbins
+
+	if ( typeof(Permutation.bobbins)=="undefined" ) {
+		Middle.location = "etherply_middle.html"
+	} else if ( isNaN(parseInt(Permutation.bobbins)) ) {
+		Middle.location = "etherply_middle.html"
+	} else {
+		MiddleForms()
+	}
+	DisplayState("initial")
+}
+
+function LoadRight() {
+	if ( typeof(Permutation.right) == "undefined" ) {
+		Right.location.href = "etherply_right.html"
+	} else if ( Permutation.right != Right.location.href ) {
+		Right.location.href = Permutation.right
+	}
+}
+
+function RightLoad() {
+	Permutation.right=Right.location.href
+}
+
+var Permutation = new Object()
+Permutation.available = new Array()
+Permutation.slot = new Array()
+Permutation.prior = new Array()
+Permutation.bobbins = new Array()
+Permutation.wgt = new Array()
+Permutation.leng = new Array()
+Permutation.ratio = new Array()
+Permutation.group = new Array()
+Permutation.enterRatios = false
+
+var Solution = new Object()
+Solution.slot = new Array()
+
+function CalcPermutations() {
+	var freeBobbins = Permutation.bobbins % Permutation.ply
+	var groups = (Permutation.bobbins - freeBobbins) / Permutation.ply
+	var usedBobbins = Permutation.bobbins - freeBobbins
+	var result = 1.0
+	var plyIndex = 0
+	var groupIndex = 1
+	for ( var i = Permutation.ply + 1 ; i <= Permutation.bobbins ; ++i ) {
+		result *= i
+		if ( i <= Permutation.bobbins )  {
+			++plyIndex
+			result /= plyIndex
+			if ( plyIndex == Permutation.ply) {
+				plyIndex = 0
+				++groupIndex
+				result /= groupIndex
+			}
+		}
+		//alert("i="+i+" plyI="+plyIndex+" groupI="+groupIndex+" result="+result)
+	}
+	return result
+}
+
+// Create the panel of bobbin data entry
+function MiddleForms() {
+	var Mid = Middle.document
+	Mid.open()
+	Mid.writeln("<OL>")
+	for ( var b = 0 ; b < Permutation.bobbins ; b++ ) {
+		if ( Permutation.enterRatios ) {
+			Mid.writeln("<LI><FORM onSubmit='return false' NAME="+b+">Ratio:&nbsp;<INPUT NAME='Ratio' SIZE=8 onChange='parent.TestValues()'></FORM></LI>")
+		} else {
+			Mid.writeln("<LI><FORM onSubmit='return false' NAME="+b+">Length:&nbsp;<INPUT NAME='Length' SIZE=8 onChange='parent.TestValues()'> Weight:&nbsp;<INPUT NAME='Weight' SIZE=8 onChange='parent.TestValues()'></FORM></LI>")
+		}
+	}
+	Mid.writeln("</OL>")
+	Mid.writeln("<FORM onSubmit='return false'><INPUT TYPE='button' VALUE='Clear bobbin data' onClick='top.MiddleClear()'></FORM><BR>Select data format:")
+	Mid.writeln("<FORM NAME='format' onSubmit='return false'><INPUT TYPE='radio' NAME='f' onClick='top.EnterSwitch()'>Length and Weight  <INPUT TYPE='radio' NAME='f' onClick='top.EnterSwitch()'>Ratio</FORM>")
+	if ( Permutation.enterRatios ) {
+		Mid.format.f[1].checked = true
+	} else {
+		Mid.format.f[0].checked = true
+	}
+	Mid.close()
+	Mid.bgColor = "#CCDEF0"
+}
+
+function EnterSwitch() {
+	Permutation.enterRatios=(Middle.document.format.f[1].checked==true)
+	MiddleForms()
+}
+
+function MiddleClear() {
+	if ( confirm("Clear data for all "+Permutation.bobbins+" bobbins.\nAre you sure?") ) {
+		for ( var b = 0 ; b < Permutation.bobbins ; ++b ) {
+			delete Permutation.wgt[b]
+			delete Permutation.leng[b]
+			delete Permutation.ratio[b]
+		}
+		MiddleLoadValues()
+	}
+}
+
+function MiddleLoadValues() {
+	for ( var b = 0 ; b < Permutation.bobbins ; ++b ) {
+		var frm = Middle.document.forms[b]
+		if ( Permutation.enterRatios ) {
+			frm.Ratio.value = typeof(Permutation.ratio[b])=="undefined"?"":Permutation.ratio[b]
+		} else {
+			frm.Weight.value = typeof(Permutation.wgt[b])=="undefined"?"":Permutation.wgt[b]
+			frm.Length.value = typeof(Permutation.leng[b])=="undefined"?"":Permutation.leng[b]
+		}
+	}
+	TestValues()
+}
+
+// See if we can start calculation (all data available)
+function TestValues() {
+	DisplayState("data")
+	Left.document.calculate.calculate.disabled=!ReallyTestValues()
+}
+
+// See if we can start calculation (all data available)
+function ReallyTestValues() {
+	var ply = parseInt(Left.document.ply.ply.value)
+	if ( isNaN(ply) ) {
+		return false
+	} else {
+		Permutation.ply = ply
+	}
+
+	if (typeof(Permutation.bobbins)!="number") {
+		return false
+	}
+
+	if ( ply < 1 ) {
+		return false
+	}
+
+	if ( Permutation.bobbins < 1 ) {
+		return false
+	}
+
+	if ( Permutation.bobbins % ply != 0 ) {
+		alert( "Bobbins ("+Permutation.bobbins+") is not a multiple of ply ("+ply+")")
+		return false
+	}
+	Left.document.status.possible.value=CalcPermutations()
+	Left.document.status.possible.disabled=false
+
+	if ( Permutation.enterRatios ) {
+		for ( var b = 0 ; b < Permutation.bobbins ; ++b ) {
+			var frm = Middle.document.forms[b]
+			if (typeof(frm.Ratio.value) != "undefined" ) {
+				var v = parseFloat(frm.Ratio.value)
+				if ( !isNaN(v) ) {
+					Permutation.ratio[b] = v
+				} else {
+					return false
+				}
+			}
+		}
+	} else {
+		for ( var b = 0 ; b < Permutation.bobbins ; ++b ) {
+			var frm = Middle.document.forms[b]
+			if (typeof(frm.Weight.value) != "undefined" ) {
+				var v = parseFloat(frm.Weight.value)
+				if ( !isNaN(v) ) {
+					Permutation.wgt[b] = v
+				} else {
+					return false
+				}
+			}
+			if (typeof(frm.Length.value) != "undefined" ) {
+				var v = parseFloat(frm.Length.value)
+				if ( v==0 ) {
+					return false
+				} else if ( !isNaN(v) ) {
+					Permutation.leng[b] = v
+				} else {
+					return false
+				}
+			}
+			Permutation.ratio[b] = Permutation.wgt[b] / Permutation.leng[b]
+		}
+	}
+	return true
+}
+
+// See if we can start calculation (all data available)
+function Calculate() {
+	if ( display_state == "calculating" ) {
+		DisplayState("cancel")
+		Permutation.cancel = true
+	} else if ( ReallyTestValues() ) {
+		DisplayState("calculating")
+		PermuteInit()
+		Permutation.cancel=false
+		PermuteRecurse()
+		DisplayState("complete")
+		Permutation.solved = Permutation.cancel
+	}
+}
+
+// set up the permutation (initialize fields, pointers, average
+function PermuteInit() {
+	var ply = Permutation.ply
+	var bobbins = Permutation.bobbins
+	
+	var groups = bobbins/ply
+	Permutation.groups = groups
+	Permutation.found = 0
+	
+	var sum = 0.
+	for ( var i = 0 ; i < bobbins ; ++i ) {
+		Permutation.available[i] = true
+		Permutation.slot[i] = i
+		sum += Permutation.ratio[i]
+	}
+	Permutation.mean = sum / groups
+
+//	for ( var b = 1 ; b < bobbins ; ++b ) {
+//		if ( b % ply == 0 ) {
+//			Permutation.prior[b] = b - ply
+//		} else {
+//			Permutation.prior[b] = b - 1
+//		}
+//	}
+	for ( var g = 0 ; g < groups ; ++g ) {
+		Permutation.prior[g] = g - 1
+		Permutation.group[g] = g
+	}
+	if ( ply > 1 ) {
+		var b = groups
+		for ( var g = groups-1 ; g > -1 ; --g ) {
+			Permutation.prior[b] = g
+			Permutation.group[b] = g
+			++ b
+			for ( var i = 2 ; i < ply ; ++i ) {
+				Permutation.prior[b] = b - 1
+				Permutation.group[b] = g
+				++ b
+			}
+		}
+	}
+	Permutation.best = TestFunction() + .0001
+	
+	for ( var i = 0 ; i < bobbins ; ++i ) {
+		Permutation.slot[i] = -1
+	}
+	
+	Permutation.depth = 0
+	PermuteSet(0)
+} 
+
+// least square
+function TestFunction() {
+	var err = 0.
+	var Sums = new Array(Permutation.groups)
+	
+	for ( var g = 0 ; g < Permutation.groups ; g++ ) {
+		Sums[g] = 0
+	}
+	
+	for ( var b = 0 ; b < Permutation.bobbins ; b++ ) {
+		Sums[Permutation.group[b]] += Permutation.ratio[Permutation.slot[b]]
+	}
+	
+	for ( var g = 0 ; g < Permutation.groups ; g++ ) {
+		err +=Math.pow(Sums[g]-Permutation.mean,2)
+	}
+	return err
+}
+
+function PermuteFound() {
+	var err = TestFunction()
+	++Permutation.found
+	if ( Permutation.found % 100 == 0 ) {
+		Left.document.status.found.value=Permutation.found
+	}
+	//alert("Permute Found")
+	if ( err < Permutation.best ) {
+		//slots()
+		//alert("Old best = "+Permutation.best+" new = "+err)
+		Permutation.best = err
+		for ( var b=0 ; b<Permutation.bobbins ; ++b ) {
+			Solution.slot[b] = Permutation.slot[b]+1
+		}
+		RightSelection()
+	}
+}
+
+function PermuteSet( value ) {
+	Permutation.slot[Permutation.depth] = value
+	Permutation.available[value] = false
+}
+
+function PermuteUnset() {
+	Permutation.available[Permutation.slot[Permutation.depth]] = true
+	Permutation.slot[Permutation.depth] = -1
+}
+
+function PermuteUp() {
+	if ( Permutation.depth > -1 ) {
+		-- Permutation.depth
+	}
+}
+
+function PermuteDown() {
+	var depth = Permutation.depth + 1
+	if ( depth == Permutation.bobbins ) {
+		PermuteFound()
+		return false
+	}
+	for ( var i = Permutation.slot[Permutation.prior[depth]] + 1 ; i<Permutation.bobbins ; ++ i ) {
+		if ( Permutation.available[i] ) {
+			Permutation.depth = depth
+			PermuteSet(i)
+			return true
+		}
+	}
+	return false
+}
+
+function PermuteRecurse() {
+	if ( PermuteDown() ) {
+		do {
+			PermuteRecurse()
+		} while ( PermuteNext() && !Permutation.cancel )
+	}
+}
+
+function PermuteNext() {
+	var lower_bound = Permutation.slot[Permutation.depth]
+	PermuteUnset()
+	for ( var i = lower_bound+1 ; i<Permutation.bobbins ; ++i ) {
+		if ( Permutation.available[i] ) {
+			PermuteSet(i)
+			return true
+		}
+	}
+	PermuteUp()
+	return false
+}
+
+function RightSelection() {
+	var Rgt = Right.document
+	Rgt.open()
+	Rgt.writeln("<UL>")
+	for ( var g = 0 ; g < Permutation.groups ; g++ ) {
+		Rgt.writeln("<LI><UL>")
+		for ( var b = 0 ; b<Permutation.bobbins ; ++b ) {
+			if ( g == Permutation.group[b] ) {
+				Rgt.writeln("<LI>"+Solution.slot[b]+"</LI>")
+			}
+		}
+		Rgt.writeln("</UL></LI>")
+	}
+	Rgt.writeln("</UL>")
+	Rgt.close()
+	Right.document.bgColor = "#CCDEF0"
+}
+
+function slots() {
+	var t = ""
+	var a = ""
+	var p = ""
+	var g = ""
+	for ( var b = 0 ; b < Permutation.bobbins ; ++b ) {
+		t += Permutation.slot[b]+" "
+		a += Permutation.available[b]+" "
+		p += Permutation.prior[b]+" "
+		g += Permutation.group[b]+" "
+	}
+	alert("Depth="+Permutation.depth+"\nSlots=["+t+"]\nAvaliable=["+a+"]\nPrior=["+p+"]\nGroups = "+g+"]")
+}
+//-->
+</SCRIPT>
+<NOSCRIPT><A HREF="http://www.etherknitter.com">Etherknitter's</A> Bobbin sorter requires JavaScript support by your web browser</NOSCRIPT>
+<FRAMESET ROWS="130,*"  FRAMEBORDER="no" FRAMESPACING=0 BORDER=0 ID="WholePage" onLoad="MainLoad()">
+	<NOFRAMES>
+		<BODY BGCOLOR="#CCDEF0">
+		<CENTER><A HREF="http://www.etherknitter.com">Etherknitter's</A> Bobbin sorter requires FRAME support by your web browser
+		</BODY>
+	</NOFRAMES>
+	<FRAME NAME="Top" SRC="etherply_top.html" SCROLLING="no" ID="Top">
+	<FRAMESET COLS="200,400,*"  FRAMEBORDER="yes" FRAMESPACING=5 BORDER=5 ID="BottomHalf">
+		<FRAME NAME="Left" ID="Left" SCROLLING="no" SRC="etherply_left.html">
+		<FRAME NAME="Middle" ID="Middle" SCROLLING="auto">
+		<FRAME NAME="Right" ID="Right" SCROLLING="auto" SRC="etherply_right.html">
+	</FRAMESET>
+</FRAMESET>
+</HEAD>
+</HTML>

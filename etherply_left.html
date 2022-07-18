@@ -1,0 +1,49 @@
+<HTML>
+<HEAD>
+<!-- $Id: etherply_left.html,v 1.2 2008/05/12 23:26:54 etherknitter Exp $ -->
+<!-- etherply_left.html Left Panel -->
+<!-- License: General Public License v2 (GPLv2) -->
+<!-- Copyright 2008 Etherknitter mailto:etherknitter@gmail.com http://etherknitter.com -->
+<!-- Code hosted on Sourceforge http://sourceforge.net/projects/etherply/ -->
+</HEAD>
+<BODY BGCOLOR="#CCDEF0" onLoad="top.LeftLoad()">
+<UL>
+<LI>
+How many bobbins have you spun?<br>
+<FORM NAME="bobbins" ID="bobbins" onSubmit="return false">
+Bobbins: 
+<INPUT NAME="bobbins" SIZE=5 onChange=top.MakeBobbins()>
+</FORM>
+</LI>
+<LI>
+How many strands are plied together?<br>
+<FORM NAME="ply" ID="ply" onSubmit="return false">
+Ply: 
+<INPUT NAME="ply" SIZE=9 onChange=top.MakePly()>
+</FORM>
+</LI>
+</UL>
+<HR>
+<FORM NAME="calculate" onSubmit="return false">
+<CENTER>
+<INPUT TYPE="button" NAME="calculate" VALUE="Find best combination" onClick="top.Calculate()" DISABLED="true">
+</CENTER>
+</FORM>
+<HR>
+<FONT COLOR="grey">
+<FORM NAME="status" onSubmit="return false">
+<UL>
+<LI> Current mode<BR>
+<INPUT NAME="status" SIZE = 12 READONLY="true" VALUE="Data entry">
+</LI>
+<LI> Permutations<BR>
+<INPUT NAME="possible" SIZE = 12 READONLY="true" DISABLED="true">
+</LI>
+<LI> Found so far<BR>
+<INPUT NAME="found" SIZE = 12 READONLY="true" DISABLED="true">
+</FONT>
+</LI>
+</UL>
+</FORM>
+</BODY>
+</HTML>
